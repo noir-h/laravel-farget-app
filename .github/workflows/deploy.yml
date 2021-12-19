@@ -1,0 +1,33 @@
+# workflowの名前
+name: deploy
+
+# イベントが発生する条件
+on:
+  push:
+    branches:
+      - main
+      - feature/push_images_to_ecr
+
+# 環境変数
+env:
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  # job_id
+  deploy:
+    # job名
+    name: Deploy app to AWS Fargate
+    # workflowが実行される環境、OSなど
+    runs-on: ubuntu-latest
+
+    steps:
+      # step名
+      - name: Configure aws credentials for prod
+        # 条件に合致した時のみstepが実行される
+        # if: github.ref == 'refs/heads/main'
+        # GitHub Actions用に用意された処理のまとまり
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
