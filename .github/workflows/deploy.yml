@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - feature/push_images_to_ecr
 
 # 環境変数
 env:
@@ -28,7 +27,7 @@ jobs:
       # step名
       - name: Configure aws credentials for prod
         # 条件に合致した時のみstepが実行される
-        # if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         # GitHub Actions用に用意された処理のまとまり
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -39,7 +38,7 @@ jobs:
           role-duration-seconds: 1800
 
       - name: Set env vars for prod
-        # if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "ENV_NAME=prod" >> $GITHUB_ENV
           echo "VPC_CIDR=172.31.0.0/16" >> $GITHUB_ENV
