@@ -1,9 +1,9 @@
 up:
 	docker-compose up -d
 build:
-	docker-compose build --no-cache --force-rm
+	docker-compose build --no-cache --force-rm --platform amd64
 laravel-install:
-	docker-compose exec app composer create-project --prefer-dist laravel/laravel .
+	docker-compose exec app composer create-project --prefer-dist "laravel/laravel=8.*" .
 create-project:
 	mkdir backend
 	@make build
