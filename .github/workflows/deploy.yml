@@ -7,7 +7,7 @@ on:
     branches:
       - main
 
-# 環境変数
+# 環境変数, jobs配下、steps配下で使用した場合はそこでのみ有効
 env:
   AWS_REGION: ap-northeast-1
   # commitのSHA
@@ -21,6 +21,7 @@ jobs:
     # job名
     name: Deploy app to AWS Fargate
     # workflowが実行される環境、OSなど
+    # ubunts-latestにはdocker,AWS CLIなどが既存で入ってい
     runs-on: ubuntu-latest
 
     steps:
@@ -29,36 +30,48 @@ jobs:
         # 条件に合致した時のみstepが実行される
         if: github.ref == 'refs/heads/main'
         # GitHub Actions用に用意された処理のまとまり
+        # AWSの認証情報を渡すと、その認証情報に基づき、AWS CLIを使ってAWSの操作をおこなえるようになる
         uses: aws-actions/configure-aws-credentials@v1
+        # Actionで使う変数
         with:
           aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+          # Assume Roleする対象のIAMロールのARNを指定
           role-to-assume: ${{ secrets.PROD_AWS_ASSUME_ROLE_ARN }}
+          # Assume Roleによって得られる一時的な権限の有効期間を指定
           role-duration-seconds: 1800
 
       - name: Set env vars for prod
         if: github.ref == 'refs/heads/main'
+        # runではコマンドを実行する
+
+        # このステップ以降のステップでも使えるようにenv:での指定ではない
         run: |
           echo "ENV_NAME=prod" >> $GITHUB_ENV
-          echo "VPC_CIDR=172.31.0.0/16" >> $GITHUB_ENV
+          echo "VPC_CIDR=172.32.0.0/16" >> $GITHUB_ENV
 
+      # コードをチェックアウト(git clone)
       - uses: actions/checkout@v2
 
       - run: docker-compose up -d --build app web
 
       # 1.actions/cacheを記述したステップでの処理(キャッシュの復元)
-      # 2.その他接続に記述したステップの処理全て
+      # 2.その他後続に記述したステップの処理全て
       # 3.acrions/cacheがジョブ終了間際に自動で行う後処理(キャッシュの保存)
       - name: Cache composer
         id: cache-composer
+        # cache復元,keyのcacheがあれば
         uses: actions/cache@v2
         with:
           path: backend/vendor
+          # v1の部分をv2にすれば強制的にcacheを使用しないでjobの実行が可能
           key: composer-v1-${{ hashFiles('backend/composer.lock') }}
 
       # -T: ttyの無効, -n: installの質問表示無効, --no-dev: composer.jsonのdev用を無視
       - run: docker-compose exec -T app composer install -n --prefer-dist --no-dev
+        # actionの中にはoutputを持つものがあり、actions/cacheの場合、cache-hitというoutputを持つ。
+        # cache-hitには、キャッシュヒットしたかどうかが論理値で入っている。
         if: ${{ !steps.cache-composer.outputs.cache-hit }}
 
       - name: Cache npm
@@ -68,9 +81,12 @@ jobs:
           path: backend/node_modules
           key: npm-v1-${{ hashFiles('backend/package-lock.json') }}
 
+      # npm ciは、npm installとほぼ同じ処理だが、package-lock.jsonを更新しない。
+      # GitHub ActionsのようなCIツールでNode.js関連のパッケージをインストールする際は、npm ciがよく使われる。
       - run: docker-compose exec -T web npm ci
         if: ${{ !steps.cache-npm-ci.outputs.cache-hit }}
 
+      # jsのトランスパイル
       - run: docker-compose exec -T web npm run prod
 
       - uses: aws-actions/amazon-ecr-login@v1
