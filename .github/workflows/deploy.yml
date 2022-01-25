@@ -66,7 +66,7 @@ jobs:
         with:
           path: backend/vendor
           # v1の部分をv2にすれば強制的にcacheを使用しないでjobの実行が可能
-          key: composer-v1-${{ hashFiles('backend/composer.lock') }}
+          key: composer-v2-${{ hashFiles('backend/composer.lock') }}
 
       # -T: ttyの無効, -n: installの質問表示無効, --no-dev: composer.jsonのdev用を無視
       - run: docker-compose exec -T app composer install -n --prefer-dist --no-dev
@@ -79,7 +79,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: backend/node_modules
-          key: npm-v1-${{ hashFiles('backend/package-lock.json') }}
+          key: npm-v2-${{ hashFiles('backend/package-lock.json') }}
 
       # npm ciは、npm installとほぼ同じ処理だが、package-lock.jsonを更新しない。
       # GitHub ActionsのようなCIツールでNode.js関連のパッケージをインストールする際は、npm ciがよく使われる。
